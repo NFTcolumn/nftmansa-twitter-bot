@@ -41,19 +41,23 @@ async function autoScheduleTweetsIfNeeded(storage) {
     // Prepare tweets
     const preparedTweets = await csvProcessor.prepareTweetsForScheduling();
 
-    // Start posting immediately, then every 1 hour
-    const startTime = new Date(Date.now() + 5 * 1000); // 5 seconds from now to ensure scheduler is running
-    const intervalHours = 1;
+    // Limit to 24 tweets maximum
+    const maxTweets = 24;
+    const tweetsToSchedule = preparedTweets.slice(0, maxTweets);
 
-    console.log(`⏰ Scheduling ${preparedTweets.length} tweets:`);
+    // Start posting immediately, then every 5 minutes
+    const startTime = new Date(Date.now() + 5 * 1000); // 5 seconds from now to ensure scheduler is running
+    const intervalMinutes = 5;
+
+    console.log(`⏰ Scheduling ${tweetsToSchedule.length} tweets (max ${maxTweets}):`);
     console.log(`   Current server time: ${new Date().toISOString()}`);
     console.log(`   First tweet at: ${startTime.toISOString()}`);
-    console.log(`   Interval: ${intervalHours} hours between tweets\n`);
+    console.log(`   Interval: ${intervalMinutes} minutes between tweets\n`);
 
     let scheduledCount = 0;
-    for (let i = 0; i < preparedTweets.length; i++) {
-      const tweet = preparedTweets[i];
-      const scheduleTime = new Date(startTime.getTime() + (i * intervalHours * 60 * 60 * 1000));
+    for (let i = 0; i < tweetsToSchedule.length; i++) {
+      const tweet = tweetsToSchedule[i];
+      const scheduleTime = new Date(startTime.getTime() + (i * intervalMinutes * 60 * 1000));
 
       await storage.addTweet(
         tweet.formattedContent,
@@ -65,10 +69,10 @@ async function autoScheduleTweetsIfNeeded(storage) {
       scheduledCount++;
 
       // Log first 3 and last tweet
-      if (i < 3 || i === preparedTweets.length - 1) {
+      if (i < 3 || i === tweetsToSchedule.length - 1) {
         console.log(`✓ Tweet ${tweet.csvId} → ${scheduleTime.toLocaleString()}`);
       } else if (i === 3) {
-        console.log(`  ... scheduling ${preparedTweets.length - 4} more tweets ...`);
+        console.log(`  ... scheduling ${tweetsToSchedule.length - 4} more tweets ...`);
       }
 
       // Small delay to ensure unique IDs
@@ -76,7 +80,7 @@ async function autoScheduleTweetsIfNeeded(storage) {
     }
 
     console.log(`\n✓ Successfully scheduled ${scheduledCount} tweets!`);
-    console.log(`  First tweet posts in ~30 seconds, then every ${intervalHours} hours\n`);
+    console.log(`  First tweet posts in ~30 seconds, then every ${intervalMinutes} minutes\n`);
 
   } catch (error) {
     console.error('⚠️  Warning: Could not auto-schedule tweets:', error.message);
